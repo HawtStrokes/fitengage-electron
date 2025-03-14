@@ -79,10 +79,19 @@ ipcMain.handle("get-members", async () => {
   return gymService.getAllMembers();
 });
 
+
 ipcMain.handle("add-member", async (_, data) => {
   console.log("Adding new member:", data);
-  return gymService.addNewMember(data);
+  try {
+    const result = await gymService.addNewMember(data);
+    if (!result.success) throw new Error(result.message);
+    return result;
+  } catch (error) {
+    console.error("❌ Error in add-member:", error.message);
+    return { success: false, message: error.message }; // Return the error message
+  }
 });
+
 
 ipcMain.handle("add-payment", async (_, data) => {
   console.log("Adding payment:", data);
@@ -167,6 +176,19 @@ ipcMain.handle("delete-member", async (_, data) => {
 
 
 
+ipcMain.handle("logout-user", async (_, token) => {
+  console.log("🔒 Logging out user...");
+  return new Promise((resolve, reject) => {
+    db.run("DELETE FROM sessions WHERE session_token = ?", [token], (err) => {
+      if (err) {
+        console.error("❌ Logout failed:", err);
+        return reject({ success: false, message: "Logout failed." });
+      }
+      console.log("✅ User logged out successfully.");
+      resolve({ success: true });
+    });
+  });
+});
 
 
 

@@ -68,13 +68,12 @@ const gymService = {
         console.log(`✅ Found membership type: ${type.name} (${type.duration_days} days)`);
 
         db.run(
-          `INSERT INTO members (name, email, phone, address, membership_type_id, membership_start, membership_end, notes)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?);`,
+          "INSERT INTO members (name, email, phone, address, membership_type_id, membership_start, membership_end, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?);",
           [name, email, phone, address, membership_type_id, formatToISO(membership_start), formatToISO(membership_end), notes],
           function (err) {
             if (err) {
               console.error("❌ Failed to add member:", err);
-              return reject({ success: false, message: "Failed to add member." });
+              return reject({ success: false, message: err.message }); // Return actual error message
             }
             console.log(`✅ Member added successfully with ID: ${this.lastID}`);
             resolve({ success: true, memberId: this.lastID });
@@ -100,10 +99,7 @@ const gymService = {
         }
 
         db.run(
-          `UPDATE members 
-           SET name = ?, email = ?, phone = ?, address = ?, 
-               membership_type_id = ?, membership_start = ?, membership_end = ?, notes = ?
-           WHERE id = ?;`,
+          "UPDATE members SET name = ?, email = ?, phone = ?, address = ?, membership_type_id = ?, membership_start = ?, membership_end = ?, notes = ? WHERE id = ?;",
           [name, email, phone, address, membership_type_id, formatToISO(membership_start), formatToISO(membership_end), notes, id],
           function (err) {
             if (err) {
@@ -135,49 +131,68 @@ const gymService = {
   },
 
   // ✅ Add a payment
-  addPayment: async ({ member_id, amount, payment_type }) => {
+  addPayment: async ({ member_id, amount, payment_type_id }) => {
     return new Promise((resolve, reject) => {
-      console.log(`💰 Adding payment for Member ID ${member_id} - Amount: ${amount}`);
+      console.log(`Adding payment for Member ID ${member_id} - Amount: ${amount}`);
 
-      db.run(
-        "INSERT INTO payments (member_id, date, amount, payment_type) VALUES (?, DATE('now'), ?, ?)",
-        [member_id, amount, payment_type],
-        function (err) {
-          if (err) {
-            console.error("❌ Failed to add payment:", err);
-            return reject({ success: false, message: "Failed to add payment." });
-          }
-          console.log(`✅ Payment recorded successfully with ID: ${this.lastID}`);
-          resolve({ success: true, paymentId: this.lastID });
+      if (!payment_type_id) {
+        return reject({ success: false, message: "Payment type is required." });
+      }
+
+      // Lookup the membership type name by payment_type_id
+      db.get("SELECT name FROM membership_types WHERE id = ?", [payment_type_id], (err, row) => {
+        if (err) {
+          console.error("Failed to lookup membership type:", err);
+          return reject({ success: false, message: "Database error." });
         }
-      );
+
+        if (!row) {
+          return reject({ success: false, message: "Invalid membership type." });
+        }
+
+        const payment_type = row.name; // Use the name of the payment type
+        db.run(
+          "INSERT INTO payments (member_id, date, amount, payment_type) VALUES (?, DATE('now'), ?, ?)",
+          [member_id, amount, payment_type], // Pass the name to the query
+          function (err) {
+            if (err) {
+              console.error("Failed to add payment:", err);
+              return reject({ success: false, message: "Failed to add payment." });
+            }
+            console.log(`Payment recorded successfully with ID: ${this.lastID}`);
+            resolve({ success: true, paymentId: this.lastID });
+          }
+        );
+      });
     });
   },
 
   // ✅ Get all payments
-  getPayments: async () => {
+
+getPayments: async () => {
     return new Promise((resolve, reject) => {
-      console.log("🔍 Fetching payments from database...");
+        console.log("🔍 Fetching payments from database...");
 
-      const query = `
-        SELECT payments.id, payments.date, payments.amount, payments.payment_type, 
-               members.name AS member_name 
-        FROM payments
-        JOIN members ON payments.member_id = members.id
-        ORDER BY payments.date DESC;
-      `;
+        const query = `
+            SELECT payments.id, payments.date, payments.amount, payments.payment_type, 
+                   members.name AS member_name
+            FROM payments
+            JOIN members ON payments.member_id = members.id
+            ORDER BY payments.date DESC;
+        `;
 
-      db.all(query, [], (err, rows) => {
-        if (err) {
-          console.error("❌ Database Error in getPayments:", err);
-          return reject({ success: false, message: "Database query failed." });
-        }
+        db.all(query, [], (err, rows) => {
+            if (err) {
+                console.error("❌ Database Error in getPayments:", err);
+                return reject({ success: false, message: "Database query failed." });
+            }
 
-        console.log("✅ Payments retrieved:", rows);
-        resolve({ success: true, payments: rows });
-      });
+            console.log("✅ Payments retrieved:", rows);
+            resolve({ success: true, payments: rows });
+        });
     });
-  },
+},
+
 
   // ✅ Delete a payment
   deletePayment: async (id) => {

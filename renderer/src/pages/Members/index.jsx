@@ -20,79 +20,33 @@ const Members = () => {
   const [error, setError] = useState(null);
   const [showForm, setShowForm] = useState(false);
 
-    const handleEdit = (member) => {
-      console.log("✏ Editing member:", member);
-      
-      // Set form data to the selected member's info
-      setFormData({
-        id: member.id,  // Make sure to include the ID for updates
-        name: member.name || "",
-        email: member.email || "",
-        phone: member.phone || "",
-        address: member.address || "",
-        membership_type_id: String(member.membership_type_id) || "", // Convert to string for dropdown
-        membership_start: member.membership_start || "",
-        membership_end: member.membership_end || "",
-        notes: member.notes || "",
-      });
-
-      setEditingMemberId(member.id); // Track which member is being edited
-      setShowForm(true); // Open the form for editing
-    };
-
-
-  // 🔍 Fetch Members from Database
   useEffect(() => {
     let isMounted = true;
-
     const fetchMembershipData = async () => {
       try {
-        console.log("🔍 Fetching members from database...");
         const members = await window.api.getMembers();
-
         if (isMounted) {
-          console.log("✅ Members fetched:", JSON.stringify(members, null, 2));
-
           if (!Array.isArray(members)) {
-            console.error("❌ API returned an invalid members list:", members);
             setError("Invalid data received.");
             return;
           }
-
-          const formattedMembers = members.map((member) => ({
-            id: member.id || "N/A",
-            name: member.name || "**MISSING NAME**",
-            email: member.email || "N/A",
-            phone: member.phone || "N/A",
-            address: member.address || "N/A",
-            membership_type_id: member.membership_type_id || "N/A",
-            membership_start: member.membership_start || "N/A",
-            membership_end: member.membership_end || "N/A",
-            notes: member.notes || "N/A",
-          }));
-
-          setMembershipData(formattedMembers);
+          setMembershipData(members);
           setLoading(false);
         }
       } catch (err) {
         if (isMounted) {
-          console.error("❌ Error fetching members:", err);
           setError("Failed to load members.");
           setLoading(false);
         }
       }
     };
-
     fetchMembershipData();
-
     return () => {
       isMounted = false;
     };
   }, []);
 
-  // 🔥 Handle Register Button Click
   const handleRegisterClick = () => {
-    console.log("➕ Open Register Form");
     setShowForm(true);
     setEditingMemberId(null);
     setFormData({
@@ -107,120 +61,71 @@ const Members = () => {
     });
   };
 
-  // 🔥 Handle Form Submission (Register New Member)
-    const handleSubmit = async (e) => {
-      e.preventDefault();
+  const handleEdit = (member) => {
+    setFormData({ ...member, membership_type_id: String(member.membership_type_id) });
+    setEditingMemberId(member.id);
+    setShowForm(true);
+  };
 
-      console.log("📤 Submitting form data:", formData);
-
-      if (!formData.name || !formData.email || !formData.membership_type_id) {
-        console.error("❌ Missing required fields.");
-        setError("Missing required fields.");
-        return;
-      }
-
-      try {
-        if (editingMemberId) {
-          console.log("✏ Updating member:", formData);
-          await window.api.updateMember(formData);
-          
-          // Update the local state with the edited member
-          setMembershipData((prevData) =>
-            prevData.map((m) => (m.id === formData.id ? { ...m, ...formData } : m))
-          );
-        } else {
-          console.log("➕ Adding new member:", formData);
-          const newMember = await window.api.addMember({
-            ...formData,
-            membership_type_id: Number(formData.membership_type_id),
-          });
-
-          setMembershipData((prevData) => [...prevData, newMember]);
-        }
-
-        // Reset form & close modal
-        setFormData({
-          name: "",
-          email: "",
-          phone: "",
-          address: "",
-          membership_type_id: "",
-          membership_start: "",
-          membership_end: "",
-          notes: "",
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!formData.name || !formData.email || !formData.membership_type_id) {
+      setError("Missing required fields.");
+      return;
+    }
+    try {
+      if (editingMemberId) {
+        await window.api.updateMember(formData);
+        setMembershipData((prev) => prev.map((m) => (m.id === formData.id ? { ...m, ...formData } : m)));
+      } else {
+        const newMember = await window.api.addMember({
+          ...formData,
+          membership_type_id: Number(formData.membership_type_id),
         });
-
-        setEditingMemberId(null);
-        setShowForm(false);
-        setError(null);
-        console.log("✅ Member successfully saved.");
-      } catch (err) {
-        console.error("❌ Error saving member:", err);
-        setError("Failed to save member.");
+        setMembershipData((prev) => [...prev, newMember]);
       }
-    };
+      setShowForm(false);
+      setError(null);
+    } catch (err) {
+      setError("Failed to save member.");
+    }
+  };
 
+  const handleDelete = async (memberId) => {
+    try {
+      await window.api.deleteMember(memberId);
+      setMembershipData((prev) => prev.filter((m) => m.id !== memberId));
+    } catch (err) {
+      setError("Failed to delete member.");
+    }
+  };
 
-const handleDelete = async (memberId) => {
-  try {
-    console.log("🗑 Deleting member ID:", memberId);
-    await window.api.deleteMember(memberId);
-
-    // Remove the deleted member from the list
-    setMembershipData((prevData) => prevData.filter((m) => m.id !== memberId));
-    console.log("✅ Member deleted successfully.");
-  } catch (err) {
-    console.error("❌ Error deleting member:", err);
-    setError("Failed to delete member.");
-  }
-};
-
-
-  // 🔍 Search Members
   const filteredMembers = membershipData.filter((member) =>
-    (member.name || "").toLowerCase().includes(searchTerm.toLowerCase())
+    member.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   if (loading) {
-    return <div>Loading...</div>;
+    return <div className="text-center text-xl font-semibold">Loading...</div>;
   }
 
   return (
-    <div>
+    <div className="p-6 min-h-screen flex flex-col items-center w-full max-w-7xl mx-auto">
       {error && <div className="text-red-500">{error}</div>}
-
-      {/* 🔥 ✅ Single Search Bar */}
       <input
         type="text"
         placeholder="Search Member"
         value={searchTerm}
         onChange={(e) => setSearchTerm(e.target.value)}
-        className="border p-2 rounded w-full mb-2"
+        className="border p-3 rounded w-full max-w-lg mb-4"
       />
-
-      {/* 🔥 ✅ Single Register Button */}
-      <button onClick={handleRegisterClick} className="bg-maroon text-white px-4 py-2 rounded">
+      <button onClick={handleRegisterClick} className="bg-maroon text-white px-4 py-2 rounded mb-4">
         Register Member
       </button>
-
-      {/* 🔥 ✅ Only displaying members here */}
-        <MemberList 
-          membershipData={filteredMembers} 
-          handleEdit={handleEdit}  // ✅ Pass edit function
-          handleDelete={handleDelete} 
-        />
-
-
-      {/* 🔥 ✅ Member Form is only displayed when showForm is true */}
+      <MemberList membershipData={filteredMembers} handleEdit={handleEdit} handleDelete={handleDelete} />
       {showForm && (
         <div className="fixed inset-0 flex items-center justify-center bg-gray-500 bg-opacity-75 z-50">
           <div className="bg-[#2C3E50] p-4 rounded-lg shadow-md max-w-md w-full mx-auto">
-            <MemberForm
-              formData={formData}
-              setFormData={setFormData}
-              onSubmit={handleSubmit}
-              isEditMode={!!editingMemberId}
-            />
+            <MemberForm formData={formData} setFormData={setFormData} onSubmit={handleSubmit} isEditMode={!!editingMemberId} />
             <button onClick={() => setShowForm(false)} className="text-white mt-2">
               Close
             </button>
@@ -232,4 +137,3 @@ const handleDelete = async (memberId) => {
 };
 
 export default Members;
-

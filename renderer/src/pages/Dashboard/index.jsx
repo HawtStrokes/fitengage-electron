@@ -1,68 +1,63 @@
 import React, { useState, useEffect } from "react";
-import { FaUsers, FaExclamationCircle, FaHourglass } from "react-icons/fa";
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-} from "recharts";
+import { FaUsers, FaExclamationCircle, FaHourglass, FaDollarSign, FaChartLine } from "react-icons/fa";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { motion } from "framer-motion";
 
-// Constants
-const DAYS_7_MS = 7 * 24 * 60 * 60 * 1000;
+// Modal Component
+const Modal = ({ title, data, onClose }) => (
+  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
+    <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
+      <h2 className="text-xl font-bold mb-4">{title}</h2>
+      {data.length > 0 ? (
+        <ul className="max-h-60 overflow-y-auto">
+          {data.map((member, index) => (
+            <li key={index} className="p-2 border-b last:border-none">
+              <strong>{member.name}</strong> - Expiry: {new Date(member.membership_end).toLocaleDateString()}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="text-gray-500">No members found</p>
+      )}
+      <button className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg w-full" onClick={onClose}>Close</button>
+    </div>
+  </div>
+);
 
 const Dashboard = () => {
-  const [membershipData, setMembershipData] = useState([]);
   const [dashboardStats, setDashboardStats] = useState(null);
   const [revenueData, setRevenueData] = useState([]);
-  const [membershipTypes, setMembershipTypes] = useState({});
   const [loading, setLoading] = useState(true);
-  const [selectedStat, setSelectedStat] = useState(null);
+  const [modalData, setModalData] = useState(null);
 
-  // ✅ Fetch members & membership types using Electron API
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const [members, types] = await Promise.all([
+        const [members, paymentsData] = await Promise.all([
           window.api.getMembers(),
-          window.api.getMembershipTypes(),
+          window.api.getPayments(),
         ]);
 
-        // Map membership type ID to price
-        const membershipTypeMap = {};
-        types.forEach((type) => {
-          membershipTypeMap[type.id] = type.price;
-        });
-
-        setMembershipTypes(membershipTypeMap);
-        setMembershipData(members);
         processDashboardStats(members);
-        processRevenueData(members, membershipTypeMap);
+        processRevenueData(paymentsData);
       } catch (error) {
-        console.error("❌ Error fetching data:", error);
+        console.error("Error fetching data:", error);
       } finally {
         setLoading(false);
       }
     };
-
     fetchData();
   }, []);
 
-  // ✅ Process dashboard statistics
   const processDashboardStats = (members) => {
     const today = new Date();
-    const expiringThreshold = new Date(today.getTime() + DAYS_7_MS);
-
-    const overdueMembers = members.filter((m) => new Date(m.membership_end) < today).length;
+    const expiringThreshold = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
+    const overdueMembers = members.filter((m) => new Date(m.membership_end) < today);
     const expiringSoonMembers = members.filter((m) => {
       const expiryDate = new Date(m.membership_end);
       return expiryDate >= today && expiryDate < expiringThreshold;
-    }).length;
+    });
 
     setDashboardStats({
       totalMembers: members.length,
@@ -71,95 +66,53 @@ const Dashboard = () => {
     });
   };
 
-  // ✅ Process revenue data for the chart
-  const processRevenueData = (members, typeMap) => {
+  const processRevenueData = (payments) => {
     const paymentsByMonth = Array(12).fill(0);
-
-    members.forEach((m) => {
-      const paymentDate = new Date(m.membership_start);
+    payments.forEach((payment) => {
+      const paymentDate = new Date(payment.date);
       const monthIndex = paymentDate.getMonth();
-      const membershipPrice = typeMap[m.membership_type_id] || 0;
-      paymentsByMonth[monthIndex] += membershipPrice;
+      paymentsByMonth[monthIndex] += payment.amount;
     });
 
-    const formattedRevenueData = paymentsByMonth.map((revenue, i) => ({
-      month: new Date(0, i).toLocaleString("default", { month: "short" }),
-      revenue,
-    }));
-
-    setRevenueData(formattedRevenueData);
+    setRevenueData(
+      paymentsByMonth.map((revenue, i) => ({
+        month: new Date(0, i).toLocaleString("default", { month: "short" }),
+        revenue,
+      }))
+    );
   };
 
-  // ✅ Handle stat click
-  const handleStatClick = (stat) => {
-    if (stat !== "total") {
-      setSelectedStat(stat);
-    }
-  };
-
-  // ✅ Show loading state
-  if (loading) return <div className="text-center text-lg">Loading...</div>;
+  if (loading) return <div className="text-center text-lg font-bold">Loading...</div>;
 
   return (
-    <div className="p-6">
-      <h1 className="text-center text-4xl font-bold mb-4 text-red-950">Dashboard Overview</h1>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        <StatCard
-          title="Total Members"
-          value={dashboardStats?.totalMembers || 0}
-          icon={FaUsers}
-          onClick={() => handleStatClick("total")}
-        />
-        <StatCard
-          title="Overdue Members"
-          value={dashboardStats?.overdueMembers || 0}
-          icon={FaExclamationCircle}
-          onClick={() => handleStatClick("overdue")}
-        />
-        <StatCard
-          title="Membership Expiring Soon"
-          value={dashboardStats?.expiringSoonMembers || 0}
-          icon={FaHourglass}
-          onClick={() => handleStatClick("expiringSoon")}
-        />
+    <div className="p-6 h-full w-full flex flex-col items-center">
+      <h1 className="text-center text-4xl font-bold mb-6 text-red-800">Dashboard Overview</h1>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 w-full max-w-6xl">
+        <StatCard title="Total Members" value={dashboardStats?.totalMembers || 0} icon={FaUsers} />
+        <StatCard title="Overdue Members" value={dashboardStats?.overdueMembers.length || 0} icon={FaExclamationCircle} onClick={() => setModalData({ title: "Overdue Members", data: dashboardStats?.overdueMembers || [] })} />
+        <StatCard title="Expiring Soon" value={dashboardStats?.expiringSoonMembers.length || 0} icon={FaHourglass} onClick={() => setModalData({ title: "Expiring Soon", data: dashboardStats?.expiringSoonMembers || [] })} />
+        <StatCard title="Total Revenue" value={`$${revenueData.reduce((acc, p) => acc + p.revenue, 0).toFixed(2)}`} icon={FaDollarSign} />
       </div>
-
-      {/* ✅ Revenue Chart */}
-      <div className="mt-8 bg-white shadow-lg p-6 rounded-lg w-full">
-        <h2 className="text-center text-xl font-semibold mb-4 text-red-950">Monthly Revenue</h2>
-        {revenueData.every((r) => r.revenue === 0) ? (
-          <p className="text-center text-gray-500">No revenue data available</p>
-        ) : (
-          <ResponsiveContainer width="100%" height={290}>
-            <LineChart data={revenueData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="month" />
-              <YAxis />
-              <Tooltip />
-              <Legend />
-              <Line type="monotone" dataKey="revenue" stroke="#AA0000" strokeWidth={2} />
-            </LineChart>
-          </ResponsiveContainer>
-        )}
+      <div className="mt-8 bg-white shadow-lg p-6 rounded-lg w-full max-w-6xl">
+        <h2 className="text-center text-xl font-semibold mb-4 text-red-800">Monthly Revenue</h2>
+        <ResponsiveContainer width="100%" height={300}>
+          <LineChart data={revenueData}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey="month" />
+            <YAxis />
+            <Tooltip />
+            <Legend />
+            <Line type="monotone" dataKey="revenue" stroke="#AA0000" strokeWidth={2} />
+          </LineChart>
+        </ResponsiveContainer>
       </div>
-
-      {/* ✅ Display List of Members for Overdue/Expiring */}
-      {selectedStat === "overdue" && <MemberList members={membershipData.filter((m) => new Date(m.membership_end) < new Date())} />}
-      {selectedStat === "expiringSoon" && (
-        <MemberList
-          members={membershipData.filter(
-            (m) => new Date(m.membership_end) >= new Date() && new Date(m.membership_end) < new Date(Date.now() + DAYS_7_MS)
-          )}
-        />
-      )}
+      {modalData && <Modal title={modalData.title} data={modalData.data} onClose={() => setModalData(null)} />}
     </div>
   );
 };
 
-// ✅ StatCard Component
 const StatCard = ({ title, value, icon: Icon, onClick }) => (
-  <motion.div whileHover={{ scale: 1.05 }} className="p-6 rounded-lg shadow-md cursor-pointer bg-white" onClick={onClick}>
+  <motion.div whileHover={{ scale: 1.05 }} className="p-6 rounded-lg shadow-md cursor-pointer bg-white hover:bg-red-50 transition-all duration-300" onClick={onClick}>
     <div className="flex items-center space-x-4">
       <Icon className="text-4xl text-red-900" />
       <div>
@@ -170,23 +123,4 @@ const StatCard = ({ title, value, icon: Icon, onClick }) => (
   </motion.div>
 );
 
-// ✅ MemberList Component
-const MemberList = ({ members }) => (
-  <div className="mt-6 p-4 bg-white shadow-lg rounded-lg">
-    <h3 className="text-xl font-semibold mb-3">{members.length === 0 ? "No members found" : "Members List"}</h3>
-    {members.length === 0 ? (
-      <p className="text-gray-500">No data available</p>
-    ) : (
-      <ul className="space-y-2">
-        {members.map((member, index) => (
-          <li key={index} className="p-2 border-b">
-            <strong>{member.name}</strong> - Expiry: {new Date(member.membership_end).toLocaleDateString()}
-          </li>
-        ))}
-      </ul>
-    )}
-  </div>
-);
-
 export default Dashboard;
-
