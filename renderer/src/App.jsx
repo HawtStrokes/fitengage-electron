@@ -1,4 +1,4 @@
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom"; // Import Navigate
 import { ToastContainer } from "react-toastify";
 import Sidebar from "./components/Sidebar";
 import Dashboard from "./pages/Dashboard";
@@ -8,22 +8,16 @@ import Members from "./pages/Members";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
 
-// ✅ Only Import If They Exist
-// import EmailVerify from "./pages/EmailVerify";
-// import ResetPassword from "./pages/ResetPassword";
-
 const App = () => {
   return (
     <div>
       <ToastContainer />
       <Routes>
-        {/* ✅ Public Routes */}
-        <Route path="/" element={<Home />} />
-        <Route path="/login" element={<Login />} />
+        {/* ✅ Redirect root path to login */}
+        <Route path="/" element={<Navigate to="/login" replace />} />
 
-        {/* ❌ Remove These Routes If They Don't Exist */}
-        {/* <Route path="/email-verify" element={<EmailVerify />} /> */}
-        {/* <Route path="/reset-password" element={<ResetPassword />} /> */}
+        {/* ✅ Public Routes */}
+        <Route path="/login" element={<Login />} />
 
         {/* ✅ Private Routes (No Auth Check Yet) */}
         <Route
@@ -68,4 +62,3 @@ const App = () => {
 };
 
 export default App;
-
