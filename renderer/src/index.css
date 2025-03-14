@@ -1,0 +1,51 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=Outfit:wght@100..900&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+*{
+  font-family: "Inter", serif;
+}
+
+/* Add this to your global styles (e.g., App.css or a relevant CSS file) */
+.flex {
+  display: flex;
+}
+
+.w-full {
+  width: 100%;
+}
+
+.w-64 {
+  width: 16rem; /* Sidebar width */
+}
+
+.min-h-screen {
+  min-height: 100vh;
+}
+
+.flex-1 {
+  flex: 1;
+}
+
+.bg-maroon {
+  background-color: #800000;
+}
+
+.bg-gray-100 {
+  background-color: #f7fafc;
+}
+
+.bg-white {
+  background-color: white;
+}
+
+.text-maroon {
+  color: #800000;
+}
+
+.text-white {
+  color: white;
+}
+

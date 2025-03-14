@@ -1,0 +1,76 @@
+.background {
+    width: 100vw;
+    height: 100vh;
+    background: linear-gradient(to right, white 5%, #508296 5%, #508296 40%, white 30%);
+}
+
+.container {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    padding: 20px;
+}
+
+.card {
+    display: flex;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.5);
+    width: 100%;
+    max-width: 900px;
+    min-height: 500px;
+    overflow: hidden;
+    position: relative;
+    /* Needed for absolute positioning */
+}
+
+.leftPanel {
+    background-color: #508296;
+    width: 50%;
+    /* Adjusted to make space for the enlarged image */
+}
+
+.rightPanel {
+    padding: 30px;
+    width: 60%;
+    /* Adjusted to match the left panel */
+}
+
+/* Enlarged Profile Image & Shifted Left */
+.profileImage {
+    position: absolute;
+    left: 30%;
+    /* Adjust this value to position the image horizontally */
+    top: 60%;
+    /* Adjust this value to move the image down */
+    transform: translate(-50%, -50%);
+    width: 603px;
+    /* Full width of the image */
+    height: 527.6px;
+    /* Full height of the image */
+    z-index: 10;
+    /* Ensure it's above the panels */
+    object-fit: contain;
+    /* Ensures the image fits without distortion */
+}
+
+.field {
+    margin-bottom: 20px;
+}
+
+.field label {
+    color: #888;
+    font-size: 14px;
+    margin-bottom: 8px;
+    display: block;
+}
+
+.field p {
+    margin: 0;
+    font-size: 16px;
+    color: #333;
+    font-weight: 500;
+}
